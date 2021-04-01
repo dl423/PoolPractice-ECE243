@@ -40,25 +40,20 @@
 #define FALSE 0
 #define TRUE 1
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdbool.h>
-
-//Prototypes
-void drawRectangle(int x, int y, int width, int height, short int color);
-void draw_line(int x1, int y1, int x2, int y2, short int line_color);
-void plot_pixel(int x, int y, short int line_color);
-void clear_screen();
-void wait_for_vsync();
-
-void swap(int *a1, int *a2) {
-  int tmp = *a1;
-  *a1 = *a2;
-  *a2 = tmp;
-}
 
 
 volatile int pixel_buffer_start; // global variable
+
+
+
+#include <stdlib.h>
+#include <stdio.h>
+#include "drawing.c"
+
+
+//Prototypes
+void wait_for_vsync();
+void swap(int *a1, int *a2);
 
 int main(void)
 {
@@ -83,13 +78,19 @@ int main(void)
     wait_for_vsync();
     /* initialize a pointer to the pixel buffer, used by drawing functions */
     pixel_buffer_start = *pixel_ctrl_ptr;
-    clear_screen(); // pixel_buffer_start points to the pixel buffer
+    //Draw the board on both buffers
+    drawRectangle(0, 0, RESOLUTION_X, RESOLUTION_Y, 0x0);
+    drawRectangle(20, 20, RESOLUTION_X-40, RESOLUTION_Y-40, CYAN);
+    fillCircle(20, 20, 10, WHITE);
+
+
     /* set back pixel buffer to start of SDRAM memory */
     *(pixel_ctrl_ptr + 1) = 0xC0000000;
     pixel_buffer_start = *(pixel_ctrl_ptr + 1); // we draw on the back buffer
-    clear_screen(); // clear backbuffer
-
-    //Draw the board
+    //Draw the board on both buffers
+    drawRectangle(0, 0, RESOLUTION_X, RESOLUTION_Y, 0x0);
+    drawRectangle(20, 20, RESOLUTION_X-40, RESOLUTION_Y-40, CYAN);
+	  fillCircle(20, 20, 10, WHITE);
 
     //Set up inputs and interupts (or we could poll within the main loop)
 
@@ -108,13 +109,6 @@ int main(void)
     }
 }
 
-//subroutines
-
-void drawRectangle(int x, int y, int width, int height, short int color) {
-  for (int xi = x; xi <= x+width; xi++) {
-      draw_line(xi, y, xi, y+height, color);
-  }
-}
 
 void wait_for_vsync() {
   volatile int * pixel_ctrl_ptr = 0xFF203020;
@@ -128,72 +122,8 @@ void wait_for_vsync() {
   }
 }
 
-void clear_screen() {
-    for (int x = 0; x < RESOLUTION_X; x++) {
-      for (int y = 0; y < RESOLUTION_Y; y++) {
-        plot_pixel(x, y, 0x0000);
-      }
-    }
-}
-
-void plot_pixel(int x, int y, short int line_color) {
-    *(short int *)(pixel_buffer_start + (y << 10) + (x << 1)) = line_color;
-}
-
-
-void draw_line(int x1, int y1, int x2, int y2, short int line_color) {
-
-  //If a vertical / horizontal line => Draw using convential method
-  if (x1 == x2) {
-    for (int y = y1; y <= y2; y++) {
-      plot_pixel(x1, y, line_color);
-    }
-    return;
-  }else if (y1 == y2) {
-    for (int x = x1; x <= x2; x++) {
-      plot_pixel(x, y1, line_color);
-    }
-    return;
-  }
-
-  //Otherwise, Use Breseham's Algorithm to draw a line
-
-  bool isSteep = abs(y2-y1) > abs(x2 - x1);
-  if (isSteep) {
-    //Swap x1, y1 & x2, y2
-    swap(&x1, &y1);
-    swap(&x2, &y2);
-  }
-  if (x1 > x2) {
-    //Swap x1, x2 & y1, y2
-    swap(&x1, &x2);
-    swap(&y1, &y2);
-  }
-
-  int deltaY = abs(y2 - y1);
-  int deltaX = x2 - x1;
-  int error = -1 * deltaX / 2;
-
-  int y = y1;
-  int y_step = 0;
-  if (y1 < y2)
-    y_step = 1;
-  else
-    y_step = -1;
-
-  for (int x = x1; x <= x2; x++) {
-    if (isSteep) {
-      plot_pixel(y, x, line_color);
-    }else {
-      plot_pixel(x, y, line_color);
-    }
-
-    error += deltaY;
-    if (error >= 0) {
-      y += y_step;
-      error -= deltaX;
-    }
-
-  }
-
+void swap(int *a1, int *a2) {
+  int tmp = *a1;
+  *a1 = *a2;
+  *a2 = tmp;
 }
